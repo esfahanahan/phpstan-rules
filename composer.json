@@ -4,12 +4,18 @@
     "type": "phpstan-extension",
     "license": "MIT",
     "keywords": [
+        "dev",
         "phpstan",
         "phpstan-extension",
         "static analysis",
         "laravel",
         "eloquent"
     ],
+    "homepage": "https://esfahanahan.github.io/phpstan-rules",
+    "support": {
+        "issues": "https://github.com/esfahanahan/phpstan-rules/issues",
+        "source": "https://github.com/esfahanahan/phpstan-rules"
+    },
     "authors": [
         {
             "name": "EsfahanAhan",

@@ -1,0 +1,15 @@
+title: esfahanahan/phpstan-rules
+description: Dev-only PHPStan rules and extensions for EsfahanAhan
+remote_theme: just-the-docs/just-the-docs
+url: https://esfahanahan.github.io
+baseurl: /phpstan-rules
+search_enabled: true
+
+aux_links:
+  Packagist: https://packagist.org/packages/esfahanahan/phpstan-rules
+  GitHub: https://github.com/esfahanahan/phpstan-rules
+
+nav_external_links:
+  - title: Packagist
+    url: https://packagist.org/packages/esfahanahan/phpstan-rules
+    hide_icon: false
