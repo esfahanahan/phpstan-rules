@@ -1,0 +1,25 @@
+services:
+    -
+        class: EsfahanAhan\PHPStan\Rules\NestedEagerLoadWithOverwritesConstraintRule
+        tags:
+            - phpstan.rules.rule
+        arguments:
+            nodeType: PhpParser\Node\Stmt\ClassMethod
+    -
+        class: EsfahanAhan\PHPStan\Rules\NestedEagerLoadWithOverwritesConstraintRule
+        tags:
+            - phpstan.rules.rule
+        arguments:
+            nodeType: PhpParser\Node\Stmt\Function_
+    -
+        class: EsfahanAhan\PHPStan\Rules\NestedEagerLoadWithOverwritesConstraintRule
+        tags:
+            - phpstan.rules.rule
+        arguments:
+            nodeType: PhpParser\Node\Expr\Closure
+    -
+        class: EsfahanAhan\PHPStan\Rules\NestedEagerLoadWithOverwritesConstraintRule
+        tags:
+            - phpstan.rules.rule
+        arguments:
+            nodeType: PhpParser\Node\Expr\ArrowFunction
