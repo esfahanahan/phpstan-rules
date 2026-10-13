@@ -18,18 +18,18 @@
     },
     "authors": [
         {
-            "name": "EsfahanAhan",
-            "email": "dev@esfahanahan.com",
-            "role": "Owner"
+            "name": "Hossein Hosni",
+            "homepage": "https://github.com/hosni",
+            "role": "Author"
         }
     ],
     "require": {
-        "php": "^8.4",
-        "phpstan/phpstan": "^2.1"
+        "php": ">=8.1",
+        "phpstan/phpstan": ">=2.0"
     },
     "require-dev": {
-        "laravel/pint": "^1.27",
-        "phpunit/phpunit": "^12.5 || ^13.0"
+        "laravel/pint": ">=1.0",
+        "phpunit/phpunit": ">=9.6"
     },
     "autoload": {
         "psr-4": {

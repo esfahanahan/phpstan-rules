@@ -6,14 +6,14 @@
 [![PHP Version](https://img.shields.io/packagist/php-v/esfahanahan/phpstan-rules.svg?style=flat-square)](https://packagist.org/packages/esfahanahan/phpstan-rules)
 [![License](https://img.shields.io/packagist/l/esfahanahan/phpstan-rules.svg?style=flat-square)](LICENSE)
 
-Dev-only PHPStan rules and extensions for EsfahanAhan. Install it with `--dev`. It does not belong in production dependencies.
+Written by [Hossein Hosni](https://github.com/hosni).
 
 Usage docs: <https://esfahanahan.github.io/phpstan-rules>
 
 ## Requirements
 
-- PHP 8.4 or higher
-- PHPStan 2.1 or higher
+- PHP 8.1 or higher
+- PHPStan 2.0 or higher
 - [`phpstan/extension-installer`](https://github.com/phpstan/extension-installer) (recommended)
 
 The nested eager-load rule inspects Eloquent `with()` call sites. The package does not depend on `illuminate/*`.
@@ -23,6 +23,8 @@ The nested eager-load rule inspects Eloquent `with()` call sites. The package do
 ```bash
 composer require --dev esfahanahan/phpstan-rules
 ```
+
+The `dev` keyword in `composer.json` makes Composer offer to install this package into `require-dev` when `composer require` is run without `--dev`.
 
 With `phpstan/extension-installer`, that is enough. The installer loads `extension.neon`.
 
@@ -72,6 +74,10 @@ $query->with([
 ## Laravel Boost
 
 The package ships a skill at `resources/boost/skills/eloquent-nested-eager-loads`. Boost discovers that directory on a direct dependency. Add `esfahanahan/phpstan-rules` to `boost.json` `packages`, keep `eloquent-nested-eager-loads` in `skills`, then run Boost's update.
+
+## Credit
+
+Written by [Hossein Hosni](https://github.com/hosni).
 
 ## Development
 

@@ -1,5 +1,6 @@
 title: esfahanahan/phpstan-rules
-description: Dev-only PHPStan rules and extensions for EsfahanAhan
+description: PHPStan rules and extensions for EsfahanAhan
+footer_content: 'Written by <a href="https://github.com/hosni">Hossein Hosni</a>.'
 remote_theme: just-the-docs/just-the-docs
 url: https://esfahanahan.github.io
 baseurl: /phpstan-rules

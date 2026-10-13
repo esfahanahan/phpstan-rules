@@ -7,6 +7,8 @@ permalink: /rules/nested-eager-loads/
 
 # Nested eager-load `with()`
 
+Written by [Hossein Hosni](https://github.com/hosni).
+
 Identifier: `esfahanahan.nestedEagerLoadOverwritesConstraint`
 
 Class: `EsfahanAhan\PHPStan\Rules\NestedEagerLoadWithOverwritesConstraintRule`
