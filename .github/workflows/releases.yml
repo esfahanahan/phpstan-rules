@@ -1,0 +1,67 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release, for example v1.0.1
+        required: true
+        type: string
+      notes:
+        description: Release notes. Leave empty to list the commits in this tag.
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          if [[ -z "$TAG" || "$TAG" == -* || "$TAG" == *[[:space:]]* ]]; then
+            echo "Tag is empty or invalid."
+            exit 1
+          fi
+
+          if ! git rev-parse --verify --quiet "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} does not exist."
+            exit 1
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists."
+            exit 1
+          fi
+
+          if [[ -n "$NOTES" ]]; then
+            printf '%s\n' "$NOTES" > /tmp/notes.md
+          else
+            previous="$(git tag --sort=v:refname | awk -v tag="$TAG" '$0 == tag { found = 1; exit } { previous = $0 } END { if (found) print previous }')"
+            {
+              echo "Changes in ${TAG}:"
+              echo
+              if [[ -n "$previous" ]]; then
+                git log --reverse --pretty=format:'- %s' "${previous}..${TAG}"
+              else
+                git log --reverse --pretty=format:'- %s' "$TAG"
+              fi
+              echo
+              echo
+              echo "Written by [Hossein Hosni](https://github.com/hosni)."
+            } > /tmp/notes.md
+          fi
+
+          gh release create "$TAG" --target "$TAG" --title "$TAG" --notes-file /tmp/notes.md
