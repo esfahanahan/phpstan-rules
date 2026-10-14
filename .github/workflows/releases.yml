@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Create release
         env:
@@ -64,4 +65,6 @@ jobs:
             } > /tmp/notes.md
           fi
 
-          gh release create "$TAG" --target "$TAG" --title "$TAG" --notes-file /tmp/notes.md
+          # The tag already exists. --target asks the releases API to point at that
+          # commit, and GitHub then requires workflows:write, which this token cannot have.
+          gh release create "$TAG" --title "$TAG" --notes-file /tmp/notes.md
