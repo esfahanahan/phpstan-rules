@@ -13,72 +13,93 @@ Identifier: `esfahanahan.nestedEagerLoadOverwritesConstraint`
 
 Class: `EsfahanAhan\PHPStan\Rules\NestedEagerLoadWithOverwritesConstraintRule`
 
-Eloquent stores every `with()` on one builder in one map. A dotted name such as `variations.attributeItems` also stores a callback for each parent. If that parent was not passed in the same `with()` call, Eloquent stores an empty callback for it. The next `with()` replaces any callback already stored for that parent.
+Eloquent stores every `with()` on one builder in one map. A dotted name such as `posts.comments` also stores a callback for each parent. If that parent was not passed in the same `with()` call, Eloquent stores an empty callback for it. The next `with()` replaces any callback already stored for that parent.
 
 This has worked this way since Laravel 4. Splitting the calls so a static analyser can infer a narrower type changes which rows are loaded.
+
+`User` has many `Post`s, and `Post` has many `Comment`s. Users `1` and `2` exist. User `1` has published post `10` and unpublished post `12`. User `2` has published post `11`.
 
 ## Reported
 
 A later `with()` names a child, and an earlier `with()` on the same builder had a real callback for the parent.
 
 ```php
-$query->with([
-    'variations' => function (Relation $query): void {
-        $query->where('table_show', true);
+$users = User::with([
+    'posts' => function (Relation $query): void {
+        $query->where('published', true);
     },
 ])->with([
-    'variations.attributeItems' => function (Relation $query): void {
-        $query->where('is_show', true);
+    'posts.comments' => function (Relation $query): void {
+        $query->where('approved', true);
     },
-]);
+])->get();
 ```
 
-The same replacement happens for `with('variations.attributeItems', ...)` and for a later statement on the same variable:
+```sql
+select * from `users`
+
+select * from `posts` where `posts`.`user_id` in (1, 2)
+
+select * from `comments` where `comments`.`post_id` in (10, 11, 12) and `approved` = 1
+```
+
+`where published = 1` is gone. Unpublished post `12` is loaded. The comments constraint stays.
+
+The same replacement happens for `with('posts.comments', ...)` and for a later statement on the same variable:
 
 ```php
-$query->with('variations', function (Relation $query): void {
-    $query->where('table_show', true);
+$users = User::with('posts', function (Relation $query): void {
+    $query->where('published', true);
 });
 
-$query->with('variations.attributeItems', function (Relation $query): void {
-    $query->where('is_show', true);
+$users = User::with('posts.comments', function (Relation $query): void {
+    $query->where('approved', true);
 });
 ```
 
-`where('table_show', true)` does not run. Hidden variations are loaded.
+`where('published', true)` does not run. Unpublished posts are loaded.
 
 ## Keep both constraints in one call
 
 ```php
-$query->with([
-    'variations' => function (Relation $query): void {
-        $query->where('table_show', true);
+$users = User::with([
+    'posts' => function (Relation $query): void {
+        $query->where('published', true);
     },
-    'variations.attributeItems' => function (Relation $query): void {
-        $query->where('is_show', true);
+    'posts.comments' => function (Relation $query): void {
+        $query->where('approved', true);
     },
-]);
+])->get();
 ```
 
-The child name does not replace the parent callback, because the parent is already present in that same call.
+```sql
+select * from `users`
+
+select * from `posts` where `posts`.`user_id` in (1, 2) and `published` = 1
+
+select * from `comments` where `comments`.`post_id` in (10, 11) and `approved` = 1
+```
+
+The child name does not replace the parent callback, because the parent is already present in that same call. Comments are loaded only for published posts `10` and `11`.
 
 ## When the child callback calls a model scope
 
-An array callback is typed as `Relation`, so a scope such as `attributeOrderBy()` is not visible to PHPStan there. `with('variations.attributeItems', function (Relation $query) { ... })` is narrowed to that relation.
+An array callback is typed as `Relation`, so a local scope such as `newest()` on `Comment` is not visible to PHPStan there. `with('posts.comments', function (Relation $query) { ... })` is narrowed to that relation.
 
-Register the child before the parent constraint. The later `with('variations', ...)` replaces only `variations`. Do not name `variations.attributeItems`, or anything under it, in that later call. A deeper name in a later `with()` stores an empty callback for `variations.attributeItems` and drops the scope.
+Register the child before the parent constraint. The later `with('posts', ...)` replaces only `posts`. Do not name `posts.comments`, or anything under it, in that later call. A deeper name in a later `with()` stores an empty callback for `posts.comments` and drops the scope.
 
 ```php
-$query
-    ->with('variations.attributeItems.attribute')
-    ->with('variations.attributeItems', function (Relation $query): void {
-        $query->where('is_show', true)->attributeOrderBy();
+$users = User::query()
+    ->with('posts.comments.author')
+    ->with('posts.comments', function (Relation $query): void {
+        $query->where('approved', true)->newest();
     })
     ->with([
-        'variations' => function (Relation $query): void {
-            $query->where('table_show', true);
+        'posts' => function (Relation $query): void {
+            $query->where('published', true);
         },
-    ]);
+    ])
+    ->get();
 ```
 
 ## Not reported

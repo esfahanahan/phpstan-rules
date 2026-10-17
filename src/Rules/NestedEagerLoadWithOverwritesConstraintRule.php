@@ -28,8 +28,8 @@ use PHPStan\Rules\RuleErrorBuilder;
  * A later with() for a child relation replaces a parent eager-load callback.
  *
  * Eloquent merges each with() into the same map. A dotted name such as
- * variations.attributeItems also stores an empty callback for variations,
- * and that empty callback overwrites a constraint registered by an earlier with().
+ * posts.comments also stores an empty callback for posts, and that empty
+ * callback overwrites a constraint registered by an earlier with().
  *
  * @implements Rule<Node>
  */

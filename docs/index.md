@@ -12,7 +12,7 @@ Written by [Hossein Hosni](https://github.com/hosni).
 ## Requirements
 
 - PHP 8.1 or higher
-- PHPStan 2.0 or higher
+- PHPStan ^2.0
 - [`phpstan/extension-installer`](https://github.com/phpstan/extension-installer), unless you include `extension.neon` yourself
 
 The rules read PHP call sites. They do not boot Laravel and do not depend on `illuminate/*`.

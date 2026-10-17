@@ -13,7 +13,7 @@ Usage docs: <https://esfahanahan.github.io/phpstan-rules>
 ## Requirements
 
 - PHP 8.1 or higher
-- PHPStan 2.0 or higher
+- PHPStan ^2.0
 - [`phpstan/extension-installer`](https://github.com/phpstan/extension-installer) (recommended)
 
 The nested eager-load rule inspects Eloquent `with()` call sites. The package does not depend on `illuminate/*`.
@@ -57,19 +57,34 @@ Identifier: `esfahanahan.nestedEagerLoadOverwritesConstraint`
 
 A later `with()` for a child relation replaces the parent callback registered by an earlier `with()`.
 
+`User` has many `Post`s, and `Post` has many `Comment`s. Splitting the constraints across two `with()` calls drops `where('published', true)`, so unpublished posts are loaded:
+
 ```php
-$query->with([
-    'variations' => function (Relation $query): void {
-        $query->where('table_show', true);
+$users = User::with([
+    'posts' => function (Relation $query): void {
+        $query->where('published', true);
     },
 ])->with([
-    'variations.attributeItems' => function (Relation $query): void {
-        $query->where('is_show', true);
+    'posts.comments' => function (Relation $query): void {
+        $query->where('approved', true);
     },
-]);
+])->get();
 ```
 
-`where('table_show', true)` is gone. Pass both relations in one `with()` array. The [usage doc](https://esfahanahan.github.io/phpstan-rules/rules/nested-eager-loads/) shows the safe forms, including when a child callback calls a model scope.
+Pass both relations in one `with()` array:
+
+```php
+$users = User::with([
+    'posts' => function (Relation $query): void {
+        $query->where('published', true);
+    },
+    'posts.comments' => function (Relation $query): void {
+        $query->where('approved', true);
+    },
+])->get();
+```
+
+The [usage doc](https://esfahanahan.github.io/phpstan-rules/rules/nested-eager-loads/) shows the SQL for both forms, and the safe order when a child callback calls a model scope.
 
 ## Laravel Boost
 
