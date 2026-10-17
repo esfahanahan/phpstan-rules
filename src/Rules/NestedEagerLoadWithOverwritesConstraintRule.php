@@ -25,11 +25,15 @@ use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
 
 /**
- * A later with() for a child relation replaces a parent eager-load callback.
+ * A later with() or load() for a child relation replaces a parent eager-load callback.
  *
  * Eloquent merges each with() into the same map. A dotted name such as
  * posts.comments also stores an empty callback for posts, and that empty
  * callback overwrites a constraint registered by an earlier with().
+ *
+ * load() starts a new query and calls with() once. The empty parent callback
+ * still reloads that parent and replaces the constrained relation already on the model.
+ * loadMissing() skips a relation that is already loaded.
  *
  * @implements Rule<Node>
  */
@@ -138,15 +142,26 @@ final class NestedEagerLoadWithOverwritesConstraintRule implements Rule
             $this->walk($argument->value, $scopes, $errors);
         }
 
-        $calls = $this->withChain($expression);
+        $calls = $this->eagerLoadChain($expression);
         $rootId = $this->rootId($expression);
         $loaded = $rootId !== null ? ($scopes[$rootId] ?? []) : [];
 
         foreach ($calls as $call) {
+            $method = $this->eagerLoadMethod($call);
             $parsed = $this->parseWithArguments($call);
 
-            if ($parsed === null) {
+            if ($method === null || $parsed === null) {
                 $loaded = [];
+
+                continue;
+            }
+
+            if ($method === 'loadMissing') {
+                foreach ($parsed as $name => $spec) {
+                    if (! isset($loaded[$name])) {
+                        $loaded[$name] = $spec;
+                    }
+                }
 
                 continue;
             }
@@ -158,16 +173,30 @@ final class NestedEagerLoadWithOverwritesConstraintRule implements Rule
 
                 $line = $call->name instanceof Identifier ? $call->name->getStartLine() : $call->getStartLine();
 
-                $errors[] = RuleErrorBuilder::message(sprintf(
-                    'Calling with() for [%s] replaces the existing [%s] eager-load callback with an empty constraint. Pass [%s] and [%s] in the same with() array.',
-                    $spec['introducedBy'],
-                    $name,
-                    $name,
-                    $spec['introducedBy'],
-                ))
+                $errors[] = RuleErrorBuilder::message($method === 'load'
+                    ? sprintf(
+                        'Calling load() for [%s] reloads [%s] with an empty constraint and drops its eager-load callback. Pass [%s] and [%s] in the same load() array, or use loadMissing().',
+                        $spec['introducedBy'],
+                        $name,
+                        $name,
+                        $spec['introducedBy'],
+                    )
+                    : sprintf(
+                        'Calling with() for [%s] replaces the existing [%s] eager-load callback with an empty constraint. Pass [%s] and [%s] in the same with() array.',
+                        $spec['introducedBy'],
+                        $name,
+                        $name,
+                        $spec['introducedBy'],
+                    ))
                     ->identifier(self::IDENTIFIER)
                     ->line($line)
                     ->build();
+            }
+
+            if ($method === 'load') {
+                $loaded = $this->applyLoad($loaded, $parsed);
+
+                continue;
             }
 
             foreach ($parsed as $name => $spec) {
@@ -183,15 +212,39 @@ final class NestedEagerLoadWithOverwritesConstraintRule implements Rule
     }
 
     /**
+     * @param  array<string, array{kind: 'closure'|'implicit'|'plain', introducedBy: string}>  $loaded
+     * @param  array<string, array{kind: 'closure'|'implicit'|'plain', introducedBy: string}>  $parsed
+     * @return array<string, array{kind: 'closure'|'implicit'|'plain', introducedBy: string}>
+     */
+    private function applyLoad(array $loaded, array $parsed): array
+    {
+        foreach (array_keys($parsed) as $name) {
+            $prefix = $name.'.';
+
+            foreach (array_keys($loaded) as $existing) {
+                if ($existing === $name || str_starts_with($existing, $prefix)) {
+                    unset($loaded[$existing]);
+                }
+            }
+        }
+
+        foreach ($parsed as $name => $spec) {
+            $loaded[$name] = $spec;
+        }
+
+        return $loaded;
+    }
+
+    /**
      * @return list<MethodCall|StaticCall>
      */
-    private function withChain(MethodCall|StaticCall $outer): array
+    private function eagerLoadChain(MethodCall|StaticCall $outer): array
     {
         $calls = [];
         $current = $outer;
 
         while (true) {
-            if ($this->isWithCall($current)) {
+            if ($this->eagerLoadMethod($current) !== null) {
                 $calls[] = $current;
             }
 
@@ -384,13 +437,23 @@ final class NestedEagerLoadWithOverwritesConstraintRule implements Rule
         return $node instanceof Closure || $node instanceof ArrowFunction;
     }
 
-    private function isWithCall(Node $node): bool
+    private function eagerLoadMethod(Node $node): ?string
     {
         if (! $node instanceof MethodCall && ! $node instanceof StaticCall) {
-            return false;
+            return null;
         }
 
-        return $node->name instanceof Identifier && $node->name->toString() === 'with';
+        if (! $node->name instanceof Identifier) {
+            return null;
+        }
+
+        $name = $node->name->toString();
+
+        if ($name === 'with' || $name === 'load' || $name === 'loadMissing') {
+            return $name;
+        }
+
+        return null;
     }
 
     private function rootId(MethodCall|StaticCall $call): ?string

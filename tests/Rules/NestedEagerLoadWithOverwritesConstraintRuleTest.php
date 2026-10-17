@@ -32,4 +32,17 @@ final class NestedEagerLoadWithOverwritesConstraintRuleTest extends RuleTestCase
             ],
         ]);
     }
+
+    public function test_nested_load_calls_do_not_reload_a_constrained_parent(): void
+    {
+        $message = 'Calling load() for [posts.comments] reloads [posts] with an empty constraint and drops its eager-load callback. Pass [posts] and [posts.comments] in the same load() array, or use loadMissing().';
+
+        $this->analyse([__DIR__.'/Fixtures/nested-eager-load-load.php'], [
+            [$message, 9],
+            [$message, 34],
+            [$message, 62],
+            [$message, 96],
+            [$message, 112],
+        ]);
+    }
 }

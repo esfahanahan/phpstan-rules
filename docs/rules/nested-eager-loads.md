@@ -111,6 +111,73 @@ bindings: [10, 11, 1]
 
 The child name does not replace the parent callback, because the parent is already present in that same call. Comments are loaded only for published posts `10` and `11`.
 
+## `load()` reloads the parent
+
+`load()` does not merge into the builder map. Each call starts a new query, passes that one relation list to `with()`, and runs it immediately. `posts.comments` still registers `posts` with an empty callback. Eloquent then replaces the `posts` already stored on the user.
+
+```php
+$users = User::query()->get();
+
+$users->load([
+    'posts' => static function (Relation $query): void {
+        $query->where('published', true);
+    },
+]);
+
+$users->load([
+    'posts.comments' => static function (Relation $query): void {
+        $query->where('approved', true);
+    },
+]);
+```
+
+The first `load()` keeps `published = 1`. The second `load()` runs a new posts query and keeps that result:
+
+```text
+select * from `posts` where `posts`.`user_id` in (?, ?) and `published` = ?
+bindings: [1, 2, 1]
+
+select * from `posts` where `posts`.`user_id` in (?, ?)
+bindings: [1, 2]
+
+select * from `comments` where `comments`.`post_id` in (?, ?, ?) and `approved` = ?
+bindings: [10, 11, 12, 1]
+```
+
+Unpublished post `12` is on the user again. The same reload happens after `with()` when the models are already in memory:
+
+```php
+$users = User::query()
+    ->with([
+        'posts' => static function (Relation $query): void {
+            $query->where('published', true);
+        },
+    ])
+    ->get();
+
+$users->load([
+    'posts.comments' => static function (Relation $query): void {
+        $query->where('approved', true);
+    },
+]);
+```
+
+Pass both relations in one `load()` array, or load the child with `loadMissing()`. `loadMissing()` skips `posts` when that relation is already loaded, then loads `comments` on those posts:
+
+```php
+$users->load([
+    'posts' => static function (Relation $query): void {
+        $query->where('published', true);
+    },
+]);
+
+$users->loadMissing([
+    'posts.comments' => static function (Relation $query): void {
+        $query->where('approved', true);
+    },
+]);
+```
+
 ## When the child callback calls a model scope
 
 An array callback is typed as `Relation`, so a local scope such as `newest()` on `Comment` is not visible to PHPStan there. `with('posts.comments', static function (Relation $query) { ... })` is narrowed to that relation.
@@ -133,11 +200,11 @@ $users = User::query()
 
 ## Not reported
 
-- Parent and child passed in the same `with()` array.
+- Parent and child passed in the same `with()` or `load()` array.
 - The parent constraint registered after the child. The later parent callback is the one that remains. Do not rely on that order.
-- A new builder assigned over the variable before the child `with()`.
+- A new builder or model assigned over the variable before the child call.
 - Unrelated relation names.
-- `load()`. Each `load()` runs its own query and does not merge into the builder's eager-load map.
+- `loadMissing()`. It skips a relation that is already loaded, then loads the child on those models.
 
 ## Laravel Boost
 

@@ -1,6 +1,6 @@
 ---
 name: eloquent-nested-eager-loads
-description: "Use when writing, reviewing, or moving Eloquent eager loads with with(), especially nested relations such as posts.comments. A later with() for a child relation deletes the parent relation callback registered by an earlier with()."
+description: "Use when writing, reviewing, or moving Eloquent eager loads with with() or load(), especially nested relations such as posts.comments. A later with() or load() for a child relation drops the parent relation callback registered earlier."
 license: MIT
 ---
 
@@ -96,4 +96,36 @@ $users = User::query()
 
 The later `with('posts', ...)` replaces only `posts`. The child callback remains. Do not put `posts.comments` or anything under it in that later `with()`.
 
-`EsfahanAhan\PHPStan\Rules\NestedEagerLoadWithOverwritesConstraintRule` reports the chained form. A single `with()` for one relation is a normal call.
+## load() reloads the parent
+
+`load()` runs immediately. A later `load('posts.comments')` still registers `posts` with an empty callback, queries every post again, and replaces the constrained posts already on the model. Unpublished post `12` comes back.
+
+```php
+$users->load([
+    'posts' => static function (Relation $query): void {
+        $query->where('published', true);
+    },
+]);
+
+$users->load([
+    'posts.comments' => static function (Relation $query): void {
+        $query->where('approved', true);
+    },
+]);
+```
+
+Query log for the second `load()`:
+
+```text
+select * from `posts` where `posts`.`user_id` in (?, ?)
+bindings: [1, 2]
+
+select * from `comments` where `comments`.`post_id` in (?, ?, ?) and `approved` = ?
+bindings: [10, 11, 12, 1]
+```
+
+Pass both relations in one `load()` array. When `posts` is already loaded, call `loadMissing()` for `posts.comments`. `loadMissing()` does not reload `posts`.
+
+The same reload happens when `with()` already constrained `posts` and a later `load('posts.comments')` runs on the result.
+
+`EsfahanAhan\PHPStan\Rules\NestedEagerLoadWithOverwritesConstraintRule` reports the chained `with()` form and the later `load()` form. A single `with()` or `load()` for one relation is a normal call.

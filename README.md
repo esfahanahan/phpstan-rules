@@ -119,6 +119,24 @@ bindings: [10, 11, 1]
 
 Both constraints run. Comments load only for published posts `10` and `11`. The [usage doc](https://esfahanahan.github.io/phpstan-rules/rules/nested-eager-loads/) shows the safe order when a child callback calls a model scope.
 
+`load()` has the same result. Each call runs immediately, and `posts.comments` reloads `posts` with an empty callback, so the published posts are replaced:
+
+```php
+$users->load([
+    'posts' => static function (Relation $query): void {
+        $query->where('published', true);
+    },
+]);
+
+$users->load([
+    'posts.comments' => static function (Relation $query): void {
+        $query->where('approved', true);
+    },
+]);
+```
+
+Pass both relations in one `load()` array, or call `loadMissing()` for `posts.comments` when `posts` is already loaded. `loadMissing()` does not reload `posts`.
+
 ## Laravel Boost
 
 The package ships a skill at `resources/boost/skills/eloquent-nested-eager-loads`. Boost discovers that directory on a direct dependency. Add `esfahanahan/phpstan-rules` to `boost.json` `packages`, keep `eloquent-nested-eager-loads` in `skills`, then run Boost's update.
