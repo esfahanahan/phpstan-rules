@@ -38,15 +38,20 @@ $users = User::query()
     ->get();
 ```
 
-```sql
+Query log:
+
+```text
 select * from `users`
+bindings: []
 
-select * from `posts` where `posts`.`user_id` in (1, 2)
+select * from `posts` where `posts`.`user_id` in (?, ?)
+bindings: [1, 2]
 
-select * from `comments` where `comments`.`post_id` in (10, 11, 12) and `approved` = 1
+select * from `comments` where `comments`.`post_id` in (?, ?, ?) and `approved` = ?
+bindings: [10, 11, 12, 1]
 ```
 
-`where published = 1` is gone. Unpublished post `12` is loaded. The comments constraint stays.
+`published` is missing from the posts query. Unpublished post `12` is loaded. The comments constraint stays.
 
 The same replacement happens for `with('posts.comments', ...)` and for a later statement on the same variable:
 
@@ -61,7 +66,20 @@ $users->with('posts.comments', static function (Relation $query): void {
 });
 ```
 
-`where('published', true)` does not run. Unpublished posts are loaded.
+Query log:
+
+```text
+select * from `users`
+bindings: []
+
+select * from `posts` where `posts`.`user_id` in (?, ?)
+bindings: [1, 2]
+
+select * from `comments` where `comments`.`post_id` in (?, ?, ?) and `approved` = ?
+bindings: [10, 11, 12, 1]
+```
+
+`where('published', true)` does not run. Unpublished post `12` is loaded.
 
 ## Keep both constraints in one call
 
@@ -78,12 +96,17 @@ $users = User::query()
     ->get();
 ```
 
-```sql
+Query log:
+
+```text
 select * from `users`
+bindings: []
 
-select * from `posts` where `posts`.`user_id` in (1, 2) and `published` = 1
+select * from `posts` where `posts`.`user_id` in (?, ?) and `published` = ?
+bindings: [1, 2, 1]
 
-select * from `comments` where `comments`.`post_id` in (10, 11) and `approved` = 1
+select * from `comments` where `comments`.`post_id` in (?, ?) and `approved` = ?
+bindings: [10, 11, 1]
 ```
 
 The child name does not replace the parent callback, because the parent is already present in that same call. Comments are loaded only for published posts `10` and `11`.

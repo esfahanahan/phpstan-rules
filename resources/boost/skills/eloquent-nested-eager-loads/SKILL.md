@@ -10,7 +10,7 @@ Eloquent stores every `with()` on the same builder in one map. A dotted name als
 
 This has worked this way since Laravel 4. Putting the calls in a different order, or splitting them so a static analyser can infer a type, changes which rows are loaded.
 
-`User` has many `Post`s, and `Post` has many `Comment`s.
+`User` has many `Post`s, and `Post` has many `Comment`s. Users `1` and `2` exist. User `1` has published post `10` and unpublished post `12`. User `2` has published post `11`.
 
 ## Keep parent and child constraints in one with()
 
@@ -25,6 +25,19 @@ $users = User::query()
         },
     ])
     ->get();
+```
+
+Query log:
+
+```text
+select * from `users`
+bindings: []
+
+select * from `posts` where `posts`.`user_id` in (?, ?) and `published` = ?
+bindings: [1, 2, 1]
+
+select * from `comments` where `comments`.`post_id` in (?, ?) and `approved` = ?
+bindings: [10, 11, 1]
 ```
 
 Both callbacks run. The child name does not replace the parent callback, because the parent is already present in that same call. Only published posts are loaded, and only their approved comments.
@@ -46,7 +59,20 @@ $users = User::query()
     ->get();
 ```
 
-The second call loads `posts.comments` and replaces `posts` with an empty callback. `where('published', true)` is gone, so unpublished posts are loaded too. The same thing happens when the second call is `with('posts.comments', ...)` or a later statement on the same builder variable.
+Query log:
+
+```text
+select * from `users`
+bindings: []
+
+select * from `posts` where `posts`.`user_id` in (?, ?)
+bindings: [1, 2]
+
+select * from `comments` where `comments`.`post_id` in (?, ?, ?) and `approved` = ?
+bindings: [10, 11, 12, 1]
+```
+
+The second call loads `posts.comments` and replaces `posts` with an empty callback. `published` is missing, so unpublished post `12` is loaded too. The same thing happens when the second call is `with('posts.comments', ...)` or a later statement on the same builder variable.
 
 A child `with()` that runs before the parent constraint does not hit this case: the later parent callback is the one that remains. Do not rely on that order. Pass both in one array.
 

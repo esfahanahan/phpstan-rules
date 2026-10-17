@@ -57,7 +57,7 @@ Identifier: `esfahanahan.nestedEagerLoadOverwritesConstraint`
 
 A later `with()` for a child relation replaces the parent callback registered by an earlier `with()`.
 
-`User` has many `Post`s, and `Post` has many `Comment`s. Splitting the constraints across two `with()` calls drops `where('published', true)`, so unpublished posts are loaded:
+`User` has many `Post`s, and `Post` has many `Comment`s. Users `1` and `2` exist. User `1` has published post `10` and unpublished post `12`. User `2` has published post `11`. Splitting the constraints across two `with()` calls drops `where('published', true)`:
 
 ```php
 $users = User::query()
@@ -73,6 +73,21 @@ $users = User::query()
     ])
     ->get();
 ```
+
+Query log:
+
+```text
+select * from `users`
+bindings: []
+
+select * from `posts` where `posts`.`user_id` in (?, ?)
+bindings: [1, 2]
+
+select * from `comments` where `comments`.`post_id` in (?, ?, ?) and `approved` = ?
+bindings: [10, 11, 12, 1]
+```
+
+`published` is missing from the posts query, so unpublished post `12` is loaded.
 
 Pass both relations in one `with()` array:
 
@@ -89,7 +104,20 @@ $users = User::query()
     ->get();
 ```
 
-The [usage doc](https://esfahanahan.github.io/phpstan-rules/rules/nested-eager-loads/) shows the SQL for both forms, and the safe order when a child callback calls a model scope.
+Query log:
+
+```text
+select * from `users`
+bindings: []
+
+select * from `posts` where `posts`.`user_id` in (?, ?) and `published` = ?
+bindings: [1, 2, 1]
+
+select * from `comments` where `comments`.`post_id` in (?, ?) and `approved` = ?
+bindings: [10, 11, 1]
+```
+
+Both constraints run. Comments load only for published posts `10` and `11`. The [usage doc](https://esfahanahan.github.io/phpstan-rules/rules/nested-eager-loads/) shows the safe order when a child callback calls a model scope.
 
 ## Laravel Boost
 
