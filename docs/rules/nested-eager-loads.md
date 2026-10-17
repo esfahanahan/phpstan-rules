@@ -24,15 +24,18 @@ This has worked this way since Laravel 4. Splitting the calls so a static analys
 A later `with()` names a child, and an earlier `with()` on the same builder had a real callback for the parent.
 
 ```php
-$users = User::with([
-    'posts' => function (Relation $query): void {
-        $query->where('published', true);
-    },
-])->with([
-    'posts.comments' => function (Relation $query): void {
-        $query->where('approved', true);
-    },
-])->get();
+$users = User::query()
+    ->with([
+        'posts' => static function (Relation $query): void {
+            $query->where('published', true);
+        },
+    ])
+    ->with([
+        'posts.comments' => static function (Relation $query): void {
+            $query->where('approved', true);
+        },
+    ])
+    ->get();
 ```
 
 ```sql
@@ -48,11 +51,12 @@ select * from `comments` where `comments`.`post_id` in (10, 11, 12) and `approve
 The same replacement happens for `with('posts.comments', ...)` and for a later statement on the same variable:
 
 ```php
-$users = User::with('posts', function (Relation $query): void {
-    $query->where('published', true);
-});
+$users = User::query()
+    ->with('posts', static function (Relation $query): void {
+        $query->where('published', true);
+    });
 
-$users = User::with('posts.comments', function (Relation $query): void {
+$users->with('posts.comments', static function (Relation $query): void {
     $query->where('approved', true);
 });
 ```
@@ -62,14 +66,16 @@ $users = User::with('posts.comments', function (Relation $query): void {
 ## Keep both constraints in one call
 
 ```php
-$users = User::with([
-    'posts' => function (Relation $query): void {
-        $query->where('published', true);
-    },
-    'posts.comments' => function (Relation $query): void {
-        $query->where('approved', true);
-    },
-])->get();
+$users = User::query()
+    ->with([
+        'posts' => static function (Relation $query): void {
+            $query->where('published', true);
+        },
+        'posts.comments' => static function (Relation $query): void {
+            $query->where('approved', true);
+        },
+    ])
+    ->get();
 ```
 
 ```sql
@@ -84,18 +90,18 @@ The child name does not replace the parent callback, because the parent is alrea
 
 ## When the child callback calls a model scope
 
-An array callback is typed as `Relation`, so a local scope such as `newest()` on `Comment` is not visible to PHPStan there. `with('posts.comments', function (Relation $query) { ... })` is narrowed to that relation.
+An array callback is typed as `Relation`, so a local scope such as `newest()` on `Comment` is not visible to PHPStan there. `with('posts.comments', static function (Relation $query) { ... })` is narrowed to that relation.
 
 Register the child before the parent constraint. The later `with('posts', ...)` replaces only `posts`. Do not name `posts.comments`, or anything under it, in that later call. A deeper name in a later `with()` stores an empty callback for `posts.comments` and drops the scope.
 
 ```php
 $users = User::query()
     ->with('posts.comments.author')
-    ->with('posts.comments', function (Relation $query): void {
+    ->with('posts.comments', static function (Relation $query): void {
         $query->where('approved', true)->newest();
     })
     ->with([
-        'posts' => function (Relation $query): void {
+        'posts' => static function (Relation $query): void {
             $query->where('published', true);
         },
     ])

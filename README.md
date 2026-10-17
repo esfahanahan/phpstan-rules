@@ -60,28 +60,33 @@ A later `with()` for a child relation replaces the parent callback registered by
 `User` has many `Post`s, and `Post` has many `Comment`s. Splitting the constraints across two `with()` calls drops `where('published', true)`, so unpublished posts are loaded:
 
 ```php
-$users = User::with([
-    'posts' => function (Relation $query): void {
-        $query->where('published', true);
-    },
-])->with([
-    'posts.comments' => function (Relation $query): void {
-        $query->where('approved', true);
-    },
-])->get();
+$users = User::query()
+    ->with([
+        'posts' => static function (Relation $query): void {
+            $query->where('published', true);
+        },
+    ])
+    ->with([
+        'posts.comments' => static function (Relation $query): void {
+            $query->where('approved', true);
+        },
+    ])
+    ->get();
 ```
 
 Pass both relations in one `with()` array:
 
 ```php
-$users = User::with([
-    'posts' => function (Relation $query): void {
-        $query->where('published', true);
-    },
-    'posts.comments' => function (Relation $query): void {
-        $query->where('approved', true);
-    },
-])->get();
+$users = User::query()
+    ->with([
+        'posts' => static function (Relation $query): void {
+            $query->where('published', true);
+        },
+        'posts.comments' => static function (Relation $query): void {
+            $query->where('approved', true);
+        },
+    ])
+    ->get();
 ```
 
 The [usage doc](https://esfahanahan.github.io/phpstan-rules/rules/nested-eager-loads/) shows the SQL for both forms, and the safe order when a child callback calls a model scope.
